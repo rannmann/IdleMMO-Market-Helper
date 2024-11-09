@@ -4,6 +4,9 @@ Intercepts API requests on the market and stores data, then displays profit/hr o
 This script **does not** make any requests of its own, and does not automate in-game actions in any way.
 It's about the equivelent of making a spreadsheet to figure out which action is currently most profitable.
 
+![UI Example](https://github.com/user-attachments/assets/76736ee2-72c8-4efe-a968-3651611656f5)
+
+
 ## How it works
 
 This script overwrites the default browser behavior for `fetch()` XHR requests.  When it sees data
