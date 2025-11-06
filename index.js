@@ -1386,9 +1386,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":3,
+              "price":5,
               "sale_price":null,
-              "final_price":3,
+              "final_price":5,
+              "expires_in":null
+           },
+           {
+              "id":175,
+              "name":"Cheap Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":5,
+              "sale_price":null,
+              "final_price":5,
               "expires_in":null
            },
            {
@@ -1398,9 +1410,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":7,
+              "price":10,
               "sale_price":null,
-              "final_price":7,
+              "final_price":10,
+              "expires_in":null
+           },
+           {
+              "id":176,
+              "name":"Tarnished Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":10,
+              "sale_price":null,
+              "final_price":10,
               "expires_in":null
            },
            {
@@ -1410,9 +1434,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":15,
+              "price":50,
               "sale_price":null,
-              "final_price":15,
+              "final_price":50,
+              "expires_in":null
+           },
+           {
+              "id":177,
+              "name":"Gleaming Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":50,
+              "sale_price":null,
+              "final_price":50,
               "expires_in":null
            },
            {
@@ -1422,9 +1458,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":60,
+              "price":200,
               "sale_price":null,
-              "final_price":60,
+              "final_price":200,
+              "expires_in":null
+           },
+           {
+              "id":178,
+              "name":"Elemental Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":200,
+              "sale_price":null,
+              "final_price":200,
               "expires_in":null
            },
            {
@@ -1434,9 +1482,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":100,
+              "price":500,
               "sale_price":null,
-              "final_price":100,
+              "final_price":500,
+              "expires_in":null
+           },
+           {
+              "id":179,
+              "name":"Eldritch Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":500,
+              "sale_price":null,
+              "final_price":500,
               "expires_in":null
            },
            {
@@ -1446,9 +1506,21 @@
               "description":"Used for Alchemy.",
               "type":"item",
               "currency":"gold",
-              "price":1000,
+              "price":2500,
               "sale_price":null,
-              "final_price":1000,
+              "final_price":2500,
+              "expires_in":null
+           },
+           {
+              "id":180,
+              "name":"Arcane Crystal",
+              "image_url":"https:\/\/cdn.idle-mmo.com\/uploaded\/skins\/0wBRbmgxQgIiwKghbkOAhHLuzJx41R-metaZWMzLnBuZw==-.png",
+              "description":"Used for Alchemy.",
+              "type":"item",
+              "currency":"gold",
+              "price":2500,
+              "sale_price":null,
+              "final_price":2500,
               "expires_in":null
            },
            {
