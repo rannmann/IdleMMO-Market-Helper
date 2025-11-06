@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IdleMMO Market Data Helper
 // @namespace    web-idle-mmo-market-helper
-// @version      0.3
+// @version      0.4
 // @description  Intercepts API requests on the market and stores data into a local database, then displays profit/hr on skill pages.
 // @author       rannmann
 // @match        https://web.idle-mmo.com/*
