@@ -169,7 +169,9 @@
             const itemData = {
                 id: item.id,
                 hashed_id: item.hashed_id,
-                minimumPrice: parseInt(item.price.minimum.replace(/,/g, ''), 10),
+                minimumPrice: typeof item.price.minimum === 'string'
+                    ? parseInt(item.price.minimum.replace(/,/g, ''), 10)
+                    : item.price.minimum,
                 name: item.name,
                 tier: item.tier,
             };
