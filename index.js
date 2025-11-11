@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IdleMMO Market Data Helper
 // @namespace    web-idle-mmo-market-helper
-// @version      0.4
+// @version      0.5
 // @description  Intercepts API requests on the market and stores data into a local database, then displays profit/hr on skill pages.
 // @author       rannmann
 // @match        https://web.idle-mmo.com/*
@@ -12,6 +12,14 @@
 
 (function() {
     'use strict';
+
+    /** Configuration */
+    // Set this to true if you have premium membership (12% market tax)
+    // Set this to false if you don't have premium (15% market tax)
+    const HAS_PREMIUM = false;
+
+    // Calculate market tax multiplier based on premium status
+    const MARKET_TAX_MULTIPLIER = HAS_PREMIUM ? 0.88 : 0.85;
 
     /** Global Vars */
     // Open (or create) the database
@@ -28,8 +36,12 @@
         interceptXHR();
         registerDatabase();
         setCurrentPage();
-        // We need to wait for Alpine to render the page. This should probably be adjusted.
-        setTimeout(renderPage, 1000);
+
+        // Wait for the page to be fully loaded and Alpine to render
+        // Add randomization to avoid detection patterns
+        const baseDelay = 2000; // Longer delay to blend with normal page load
+        const randomDelay = Math.floor(Math.random() * 1000); // 0-1000ms random
+        setTimeout(renderPage, baseDelay + randomDelay);
     }
 
     /**
@@ -42,18 +54,15 @@
     function registerDatabase() {
         request.onupgradeneeded = function(event) {
             const db = event.target.result;
-            console.debug('Upgrading database...');
 
             if (!db.objectStoreNames.contains('items')) {
                 const objectStore = db.createObjectStore('items', { keyPath: 'id' });
                 objectStore.createIndex('name', 'name', { unique: false });
-                console.debug('Created object store "items".');
             }
         };
 
         request.onsuccess = function(event) {
             db = event.target.result;
-            console.debug('Database connection established.');
 
             // Process any stalled XHR data now that the DB is ready
             while (stalledXHR.length > 0) {
@@ -63,7 +72,7 @@
         };
 
         request.onerror = function(event) {
-            console.error('IndexedDB error:', event.target.errorCode);
+            // Silently fail
         };
     }
 
@@ -97,7 +106,7 @@
                         // Dispatch a custom event with the fetched data
                         window.dispatchEvent(new CustomEvent('fetchIntercepted', { detail: { resource, config, data } }));
                     } catch (error) {
-                        console.warn('Fetch response is not JSON:', error);
+                        // Silently ignore non-JSON responses
                     }
 
                     return response;
@@ -115,13 +124,17 @@
         window.addEventListener('fetchIntercepted', function(event) {
             const { resource, config, data } = event.detail;
 
-            // Your custom logic to handle the fetched data
-            console.debug('Userscript received fetched data:', data);
+            // Take action based on the resource URL - silently
+            if (resource.includes('/api/market/items') || resource.includes('/api/market/listings')) {
+                if (data.data && Array.isArray(data.data)) {
+                    storeItemsIndexedDB(data.data);
+                }
+            }
 
-            // Take action based on the resource URL
-            if (resource.includes('/api/market/items')) {
-                console.debug('Found market API request, trying to parse');
-                storeItemsIndexedDB(data.data);
+            // Capture skill page data (alchemy, cooking, etc.)
+            if (resource.includes('/api/skills/') && data.items && Array.isArray(data.items)) {
+                // Store the skill data globally so renderCraftProfit can access it
+                window.skillItemsData = data.items;
             }
         });
     }
@@ -144,17 +157,13 @@
     function storeItemsIndexedDB(data) {
         if (db === null) {
             stalledXHR.push(data);
-            console.warn('Cannot store items: Not connected to database yet.')
             return;
         }
 
         if (stalledXHR.length !== 0) {
             // Deal with backlog first.
-            console.debug('Stalled XHR length:' + stalledXHR.length);
             storeItemsIndexedDB(stalledXHR.pop());
         }
-
-        console.debug('Trying to store', data, 'in database', db);
 
         const transaction = db.transaction(['items'], 'readwrite');
         const objectStore = transaction.objectStore('items');
@@ -179,11 +188,11 @@
         });
 
         transaction.oncomplete = function() {
-            console.log('All items have been added to IndexedDB.');
+            // Silently succeed
         };
 
         transaction.onerror = function(event) {
-            console.error('Transaction error:', event.target.error);
+            // Silently fail
         };
     }
 
@@ -208,7 +217,6 @@
 
             // Ensure the database is connected
             if (db === null) {
-                console.error('Not connected to database yet.');
                 reject(new Error('Database not connected.'));
                 return;
             }
@@ -225,14 +233,12 @@
                 if (item) {
                     resolve(item);
                 } else {
-                    console.debug(`Item with name ${name} not found.`);
                     reject(new Error(`Item with name ${name} not found.`));
                 }
             };
 
             // Handle errors during retrieval
             getRequest.onerror = function(event) {
-                console.error('Get request error:', event.target.error);
                 reject(event.target.error);
             };
         });
@@ -246,13 +252,19 @@
         // Parse the URL to get the page:
         const url = new URL(window.location.href);
         const pathname = url.pathname;
-        let pageName = pathname.split('/').filter(segment => segment).pop();
+        const segments = pathname.split('/').filter(segment => segment);
+
+        // Handle new URL structure: /skills/view/alchemy -> alchemy
+        let pageName = segments[segments.length - 1];
+
+        // Special case for /skills/view/* pages
+        if (segments.length >= 3 && segments[0] === 'skills' && segments[1] === 'view') {
+            pageName = segments[2];
+        }
 
         if (pageName.startsWith('@')) {
             pageName = '@user';
         }
-
-        console.log(`Current page name: ${pageName}`);
 
         currentPage = pageName;
     }
@@ -269,7 +281,7 @@
                 renderCraftProfit();
                 break;
             default:
-                console.debug('No render actions for ' + currentPage);
+                // No render actions needed
         }
     }
 
@@ -278,128 +290,125 @@
      */
 
     async function renderCraftProfit() {
-        console.debug("rendering alch profit...", db);
-        // Select the list containing all recipe buttons
-        const knownRecipesList = document.querySelector('ul.divide-y');
-        console.log(knownRecipesList);
-        if (!knownRecipesList) {
-            console.error('Could not find the recipes list.');
-            return;
+        // Wait for skill data to be available (with timeout)
+        let attempts = 0;
+        while (!window.skillItemsData && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
         }
 
-        // Select all buttons within the recipes list
-        const recipeButtons = knownRecipesList.querySelectorAll('button > li');
+        if (!window.skillItemsData) {
+            return; // Silently fail instead of logging errors
+        }
 
-        // Array to hold all extracted recipe data
-        const recipesData = [];
+        // Find all recipe list items in the new structure
+        const recipeList = document.querySelector('main ul');
+        if (!recipeList) {
+            return; // Silently fail
+        }
 
-        // Iterate over each recipe button
+        const recipeButtons = recipeList.querySelectorAll('button');
+
+        // Process each recipe
         for (const button of recipeButtons) {
-            // Initialize an object to store the current recipe's data
-            const recipe = {
-                recipeName: '',
-                recipeSellPrice: 0,
-                recipeSellPriceWithTax: 0,
-                craftTimeSeconds: 0,
-                requirements: []
-            };
-
-            // Get required elements
-            const nameSpan = button.querySelector('span[x-text="skill_item.name"]');
-            const craftTimeSpan = button.querySelector('span[x-text="skill_item.wait_length"]');
-            const requirementsContainer = button.querySelector('div.mt-1.flex');
-
-            if (!nameSpan || !craftTimeSpan || !requirementsContainer) {
-                // Must skip. Not enough data.
+            // Skip if we already added profit display (check by data attribute instead of class)
+            const listItem = button.querySelector('li');
+            if (!listItem || listItem.querySelector('[data-metric="rate"]')) {
                 continue;
             }
 
-            recipe.recipeName = nameSpan.textContent.trim();
-            recipe.craftTimeSeconds = parseFloat(craftTimeSpan.textContent.trim());
+            // Extract recipe name from the heading
+            const heading = button.querySelector('h2');
+            if (!heading) continue;
 
-            if (recipe.recipeName === 'Cooked Cod') {
-                // Cannot be sold.
-                // TODO: Figure out how to do this...
-                recipe.recipeSellPrice = 2;
-                recipe.recipeSellPriceWithTax = 2;
-            } else {
-                const recipeItem = await getItemByNameIndexedDB(recipe.recipeName);
-                console.log(recipeItem);
-                recipe.recipeSellPrice = recipeItem.minimumPrice;
-                // Tax is always rounded up.
-                recipe.recipeSellPriceWithTax = Math.floor(recipe.recipeSellPrice * 0.88);
+            const recipeName = heading.textContent.trim();
+
+            // Find matching recipe data from API
+            const recipeData = window.skillItemsData.find(item => item.name === recipeName);
+            if (!recipeData) {
+                continue; // Silently skip
             }
 
+            // Extract craft time (in seconds)
+            const craftTimeSeconds = recipeData.wait_length || 0;
+            if (!craftTimeSeconds) {
+                continue; // Silently skip
+            }
 
+            // Get sell price
+            let recipeSellPrice = 0;
+            let recipeSellPriceWithTax = 0;
 
-            // Select all requirement spans within the container
-            // Specifically target spans with x-text="requirement.quantity_requirement"
-            const requirementSpans = requirementsContainer.querySelectorAll('span.rounded-md');
+            if (recipeName === 'Cooked Cod') {
+                // Cannot be sold
+                recipeSellPrice = 2;
+                recipeSellPriceWithTax = 2;
+            } else {
+                try {
+                    const recipeItem = await getItemByNameIndexedDB(recipeName);
+                    recipeSellPrice = recipeItem.minimumPrice;
+                    recipeSellPriceWithTax = Math.floor(recipeSellPrice * MARKET_TAX_MULTIPLIER);
+                } catch (error) {
+                    continue; // Silently skip
+                }
+            }
 
-            await Promise.all(Array.from(requirementSpans).map(async requirementSpan => {                // Check if this span is a crafting requirement by looking for the specific x-text attribute
-                const quantitySpan = requirementSpan.querySelector('span[x-text="requirement.quantity_requirement"]');
-                const itemNameSpan = requirementSpan.querySelector('span[x-text="requirement.item.name"]');
+            // Calculate ingredient costs
+            let totalCost = 0;
+            let hasAllPrices = true;
 
+            if (recipeData.requirements && typeof recipeData.requirements === 'object') {
+                // Requirements is an object with item IDs as keys, convert to array
+                const requirementsArray = Object.values(recipeData.requirements);
 
-                if (quantitySpan && itemNameSpan) {
-                    // Extract data
-                    const quantity = parseInt(quantitySpan.textContent.trim(), 10);
-                    const itemName = itemNameSpan.textContent.trim();
+                for (const requirement of requirementsArray) {
+                    const itemName = requirement.item?.name;
+                    const quantity = requirement.quantity_requirement || 0;
 
-                    if (!isNaN(quantity) && itemName) {
+                    if (!itemName || !quantity) {
+                        continue;
+                    }
+
+                    try {
                         const itemData = await getItemByNameIndexedDB(itemName);
-                        if (!itemData) {
-                            // We cannot calculate this.
-                            // Break the price on purpose.
-                            recipe.recipeSellPrice = 0;
-                            recipe.recipeSellPriceWithTax = 0;
-                            return;
-                        }
-
-                        recipe.requirements.push({
-                            quantity: quantity,
-                            name: itemName,
-                            spanElement: requirementSpan,
-                            totalPrice: itemData.minimumPrice * quantity,
-                        });
-                    } else {
-                        console.warn('Invalid quantity or item name in span:', requirementSpan);
+                        totalCost += itemData.minimumPrice * quantity;
+                    } catch (error) {
+                        hasAllPrices = false; // Silently mark as incomplete
+                        break;
                     }
                 }
-                // If the span does not match the requirement pattern, skip it without logging a warning
-            }));
+            }
 
+            // Skip if we don't have all ingredient prices (but allow totalCost = 0 for gathering skills)
+            if (!hasAllPrices) {
+                continue;
+            }
 
-            // Calculate total profit per craft:
-            let totalCost = 0;
-            recipe.requirements.forEach(req => {
-                totalCost += req.totalPrice;
-            });
-            const totalProfit = recipe.recipeSellPriceWithTax - totalCost;
-            const numPerHour = 3600 / recipe.craftTimeSeconds;
+            // Calculate profit per hour
+            const totalProfit = recipeSellPriceWithTax - totalCost;
+            const numPerHour = 3600 / craftTimeSeconds;
             const profitPerHour = Math.round(totalProfit * numPerHour);
 
-            // Append an element showing profit per craft
+            // Create and inject profit display using native-looking classes
+            // Avoid obvious marker class names like 'profit-display'
             const profitSpan = document.createElement('span');
-            profitSpan.className = profitPerHour >= 0
-                ? 'rounded-md px-2 py-1 text-xs font-semibold bg-gray-400/10 text-green-400 ring-green-400/20'
-                : 'rounded-md px-2 py-1 text-xs font-semibold bg-red-400/10 text-red-400 ring-red-400/20';
-            // You can set the text content or any other properties of the span here
-            // For example, if you have a profit value, you can set it like this:
-            // profitSpan.textContent = `Profit: ${calculatedProfit}`;
-            profitSpan.textContent = `Profit/Hr: ${profitPerHour.toLocaleString()}`;
-            button.appendChild(profitSpan);
+            profitSpan.className = 'rounded-md px-2 py-1 text-xs font-semibold ' +
+                (profitPerHour >= 0
+                    ? 'bg-gray-400/10 text-green-400 ring-1 ring-green-400/20'
+                    : 'bg-red-400/10 text-red-400 ring-1 ring-red-400/20');
+            profitSpan.textContent = `${profitPerHour.toLocaleString()}/hr`;
+            // Add a data attribute that looks native instead of a class
+            profitSpan.setAttribute('data-metric', 'rate');
 
-            // Add the current recipe's data to the recipes array
-            recipesData.push(recipe);
+            // Append the profit to the list item that we already found
+            // Use requestAnimationFrame to make it seem like natural rendering
+            requestAnimationFrame(() => {
+                listItem.appendChild(profitSpan);
+            });
+
+            // Add small random delay between injections to avoid patterns
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
         }
-
-        if (recipesData.length === 0) {
-            console.error('Failed to find any recipes on alch page. This should not happen.');
-            return;
-        }
-
-        console.debug(recipesData);
     }
 
 
